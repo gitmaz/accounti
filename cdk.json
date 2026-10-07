@@ -1,0 +1,15 @@
+{
+  "app": "npx ts-node --prefer-ts-exts bin/accounti-app.ts",
+  "watch": {
+    "include": ["**"],
+    "exclude": ["README.md", "cdk*.json", "**/*.d.ts", "**/*.js", "tsconfig.json", "package*.json", "node_modules", "dist", "cdk.out", "lambda", "spa", "data", "shared"]
+  },
+  "context": {
+    "defaultRegion": "ap-southeast-2",
+    "spaHosting": "cloudfront",
+    "handshakeSaasApiUrl": "https://g5wrgj1qyk.execute-api.ap-southeast-2.amazonaws.com",
+    "sesFromEmail": "mn.usyd@gmail.com",
+    "sesFromName": "Accounti",
+    "@aws-cdk/aws-lambda:recognizeLayerVersion": true
+  }
+}
