@@ -7,6 +7,7 @@ import { featureSetFromBundle, type FeatureSetId } from "../../shared/featureset
 import { isReservedCompanySlug, isValidCompanySlug, slugifyCompanyName } from "../../lib/company";
 import { balanceSheet, bankLines, basWorksheet, profitAndLoss, reconciliationDifference } from "../../shared/ledger";
 import { freshCompanyTenant } from "../../shared/seed";
+import { readSignInCopy } from "../../shared/signin-copy";
 import { isSuperAdmin, withSuperAdminGroup } from "../../shared/super-admin";
 import type { BookDocument, Company, Member, Reconciliation, Role, SmtpSettings, TenantData } from "../../shared/types";
 import { accountGroups, demoAuthEnabled, identityFromEvent, loginWithPassword, saveAccount } from "./auth";
@@ -179,6 +180,17 @@ function saveDoc(tenant: TenantData, doc: BookDocument) {
   else tenant.documents.push(doc);
 }
 
+async function signInCopy(method: string, event: APIGatewayProxyEventV2, body: Record<string, unknown>) {
+  if (method === "GET") return json(200, { copy: readSignInCopy(await getStore().getSignIn()) });
+  if (method !== "PUT") return json(405, { error: "Method not allowed" });
+  const actor = identityFromEvent(event);
+  if (!actor) return json(401, { error: "Sign in required" });
+  if (!isSuperAdmin(actor)) return json(403, { error: "Only a super-admin edits the sign-in page" });
+  const copy = readSignInCopy(body);
+  await getStore().putSignIn(copy);
+  return json(200, { copy });
+}
+
 export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
   const method = event.requestContext.http.method.toUpperCase();
   const path = (event.rawPath || "/").split("?")[0] || "/";
@@ -190,6 +202,7 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
       return json(200, { product: "accounti", handshake: Boolean(process.env.HANDSHAKE_SAAS_API_URL) });
     }
     const body = bodyOf(event);
+    if (path === "/signin-copy") return signInCopy(method, event, body);
     if (method === "POST" && path === "/auth/login") {
       const result = await loginWithPassword(String(body.email || ""), String(body.password || ""));
       if (!result) return json(401, { error: "Email or password is wrong" });

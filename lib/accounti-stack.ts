@@ -110,6 +110,7 @@ export class AccountiStack extends cdk.Stack {
     for (const pathName of [
       "/health",
       "/config",
+      "/signin-copy",
       "/auth/login",
       "/auth/activate",
       "/auth/trial",

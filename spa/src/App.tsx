@@ -1,5 +1,6 @@
-import { FormEvent, useState, type ReactNode } from "react";
+import { FormEvent, useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { ACCOUNTI_SIGNIN, type AccountiSignInCopy } from "@shared/signin-copy";
 import { api, loadSession, saveSession, type SessionUser } from "./api";
 import { BooksPage } from "./pages/BooksPage";
 import { DocumentPage } from "./pages/DocumentPage";
@@ -76,6 +77,11 @@ function SignInPage() {
   const [password, setPassword] = useState("accounti123");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [copy, setCopy] = useState<AccountiSignInCopy>(ACCOUNTI_SIGNIN);
+
+  useEffect(() => {
+    void api.signInCopy().then((row) => setCopy(row.copy)).catch(() => undefined);
+  }, []);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -96,9 +102,9 @@ function SignInPage() {
   return (
     <div className="ac-signin">
       <section className="ac-hero">
-        <p className="ac-kicker">Accounti</p>
-        <h1>The books for an Australian company.</h1>
-        <p className="ac-lead">Tax invoices, supplier bills, GST, and a BAS worksheet. Approval is optional. The financial year starts on 1 July.</p>
+        <p className="ac-kicker">{copy.kicker}</p>
+        <h1>{copy.title}</h1>
+        <p className="ac-lead">{copy.lead}</p>
       </section>
       <form className="ac-card" onSubmit={(event) => void submit(event)}>
         <h2>Sign in</h2>
@@ -111,7 +117,7 @@ function SignInPage() {
             <button key={sample} type="button" onClick={() => { setEmail(sample); setPassword("accounti123"); }}>{label}</button>
           ))}
         </div>
-        <p className="ac-fine">Sample password <code>accounti123</code>. Company <code>/harbour</code>.</p>
+        <p className="ac-fine">{copy.note}</p>
       </form>
     </div>
   );

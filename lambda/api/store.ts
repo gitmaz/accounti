@@ -10,7 +10,14 @@ import { withSuperAdminGroup } from "../../shared/super-admin";
 import type { Account, Company, TenantData } from "../../shared/types";
 import { hashPassword, SAMPLE_PASSWORD } from "./passwords";
 
-type MemoryShape = { companies: Company[]; accounts: Account[]; tenants: Record<string, TenantData> };
+const SIGNIN_SLUG = "__signin";
+
+type MemoryShape = {
+  companies: Company[];
+  accounts: Account[];
+  tenants: Record<string, TenantData>;
+  signin?: Record<string, string>;
+};
 
 export function hydrate(data: Partial<TenantData> | undefined): TenantData {
   const base = emptyTenant();
@@ -42,6 +49,8 @@ export interface Store {
   putAccount(account: Account): Promise<void>;
   load(slug: string): Promise<TenantData>;
   replaceTenant(slug: string, data: TenantData): Promise<void>;
+  getSignIn(): Promise<Record<string, string> | null>;
+  putSignIn(copy: Record<string, string>): Promise<void>;
 }
 
 function demoAccounts(): Account[] {
@@ -102,6 +111,13 @@ class MemoryStore implements Store {
     this.data.tenants[slug] = data;
     this.flush();
   }
+  async getSignIn() {
+    return this.data.signin ?? null;
+  }
+  async putSignIn(copy: Record<string, string>) {
+    this.data.signin = copy;
+    this.flush();
+  }
 }
 
 class DynamoStore implements Store {
@@ -119,7 +135,7 @@ class DynamoStore implements Store {
 
   async listCompanies() {
     const res = await this.doc.send(new ScanCommand({ TableName: this.companies() }));
-    return (res.Items || []) as Company[];
+    return ((res.Items || []) as Company[]).filter((company) => company.slug !== SIGNIN_SLUG);
   }
   async getCompany(slug: string) {
     const res = await this.doc.send(new GetCommand({ TableName: this.companies(), Key: { slug } }));
@@ -141,6 +157,14 @@ class DynamoStore implements Store {
   }
   async replaceTenant(slug: string, data: TenantData) {
     await this.doc.send(new PutCommand({ TableName: this.books(), Item: { slug, tenant: data } }));
+  }
+  async getSignIn() {
+    const res = await this.doc.send(new GetCommand({ TableName: this.companies(), Key: { slug: SIGNIN_SLUG } }));
+    const copy = (res.Item as { copy?: Record<string, string> } | undefined)?.copy;
+    return copy ?? null;
+  }
+  async putSignIn(copy: Record<string, string>) {
+    await this.doc.send(new PutCommand({ TableName: this.companies(), Item: { slug: SIGNIN_SLUG, copy } }));
   }
 }
 

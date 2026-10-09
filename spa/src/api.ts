@@ -1,3 +1,4 @@
+import type { AccountiSignInCopy } from "@shared/signin-copy";
 import type { BookDocument, Company, Contact, DialogFieldsConfig, LedgerAccount, Member, Reconciliation, Role, SmtpSettings } from "@shared/types";
 
 export type SessionUser = { email: string; name: string; groups: string[]; companySlug: string };
@@ -58,6 +59,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  signInCopy: () => request<{ copy: AccountiSignInCopy }>("/signin-copy"),
+  saveSignInCopy: (copy: AccountiSignInCopy) =>
+    request<{ copy: AccountiSignInCopy }>("/signin-copy", { method: "PUT", body: JSON.stringify(copy) }),
   login: (email: string, password: string) => request<{ token: string; user: SessionUser }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   activate: (body: Record<string, string>) => request<{ ok: boolean; company: { slug: string; name: string } }>("/auth/activate", { method: "POST", body: JSON.stringify(body) }),
   workspace: (slug: string) => request<Workspace>(`/${slug}/workspace`),

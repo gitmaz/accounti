@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api, type Workspace } from "../api";
+import { ACCOUNTI_SIGNIN, type AccountiSignInCopy } from "@shared/signin-copy";
+import { api, loadSession, type Workspace } from "../api";
 import type { DialogFieldConfig, DialogFieldsConfig, Role } from "@shared/types";
 
 const FORMS: { id: keyof DialogFieldsConfig; label: string }[] = [
@@ -55,7 +56,11 @@ export function SettingsPage() {
     }
   }
 
+  const superAdmin = Boolean(loadSession()?.user.groups.includes("super-admins"));
+
   return (
+    <>
+    {superAdmin ? <SignInCopySettings /> : null}
     <form className="ac-page" onSubmit={(event) => void save(event)}>
       <header className="ac-page-head"><div><p className="ac-kicker">Admin</p><h1>How the books are labelled</h1></div></header>
       {error ? <p className="ac-error">{error}</p> : null}
@@ -130,6 +135,44 @@ export function SettingsPage() {
         </section>
       ) : null}
       <button className="ac-solid" type="submit">Save settings</button>
+    </form>
+    </>
+  );
+}
+
+function SignInCopySettings() {
+  const [copy, setCopy] = useState<AccountiSignInCopy>(ACCOUNTI_SIGNIN);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    void api.signInCopy().then((row) => setCopy(row.copy)).catch((err: Error) => setError(err.message));
+  }, []);
+
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    setSaved(false);
+    setError(null);
+    try {
+      const row = await api.saveSignInCopy(copy);
+      setCopy(row.copy);
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the sign-in page");
+    }
+  }
+
+  return (
+    <form className="ac-page" onSubmit={(event) => void save(event)}>
+      <p className="ac-kicker">Sign-in page</p>
+      <p className="ac-fine">Titles and sentences on the sign-in page. Field labels stay as they are.</p>
+      <label>Kicker<input value={copy.kicker} onChange={(event) => setCopy({ ...copy, kicker: event.target.value })} /></label>
+      <label>Title<input value={copy.title} onChange={(event) => setCopy({ ...copy, title: event.target.value })} /></label>
+      <label>Introduction<textarea rows={3} value={copy.lead} onChange={(event) => setCopy({ ...copy, lead: event.target.value })} /></label>
+      <label>Note<textarea rows={2} value={copy.note} onChange={(event) => setCopy({ ...copy, note: event.target.value })} /></label>
+      {error ? <p className="ac-error">{error}</p> : null}
+      {saved ? <p className="ac-fine">Saved.</p> : null}
+      <button className="ac-solid" type="submit">Save sign-in page</button>
     </form>
   );
 }
