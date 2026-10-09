@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, aud, type Workspace } from "../api";
+import { setAppLanguage } from "../i18n";
 import { documentTotals } from "@shared/ledger";
 import type { Contact, DocKind } from "@shared/types";
 
@@ -19,7 +20,10 @@ export function BooksPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.workspace(slug).then(setWorkspace).catch((err: Error) => setError(err.message));
+    api.workspace(slug).then((home) => {
+      if (home.company.language) setAppLanguage(home.company.language);
+      setWorkspace(home);
+    }).catch((err: Error) => setError(err.message));
   }, [slug]);
 
   if (!workspace) return <p className="ac-fine">{error || "Loading the books…"}</p>;

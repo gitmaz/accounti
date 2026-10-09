@@ -7,6 +7,7 @@ import { featureSetFromBundle, type FeatureSetId } from "../../shared/featureset
 import { isReservedCompanySlug, isValidCompanySlug, slugifyCompanyName } from "../../lib/company";
 import { balanceSheet, bankLines, basWorksheet, profitAndLoss, reconciliationDifference } from "../../shared/ledger";
 import { freshCompanyTenant } from "../../shared/seed";
+import { normalizeLanguage } from "../../shared/language";
 import { readSignInCopy } from "../../shared/signin-copy";
 import { isSuperAdmin, withSuperAdminGroup } from "../../shared/super-admin";
 import type { BookDocument, Company, Member, Reconciliation, Role, SmtpSettings, TenantData } from "../../shared/types";
@@ -78,6 +79,7 @@ async function activate(body: Record<string, unknown>): Promise<APIGatewayProxyR
   let adminGiven = given;
   let adminFamily = family;
   let featureSet: FeatureSetId = featureSetFromBundle(body.bundleSelector ?? body.bundle_selector ?? body.featureSet);
+  let language = normalizeLanguage(body.language);
   if (handshake) {
     const res = await fetch(`${handshake}/verification/activate`, {
       method: "POST",
@@ -94,6 +96,7 @@ async function activate(body: Record<string, unknown>): Promise<APIGatewayProxyR
       lastname?: string;
       email?: string;
       bundle_selector?: number | string;
+      language?: string;
     };
     if (!res.ok || !data.ok) return json(403, { error: data.error || data.message || "Invalid activation code" });
     if (String(data.email || email).toLowerCase() !== email) return json(403, { error: "Email does not match this subscription" });
@@ -102,6 +105,7 @@ async function activate(body: Record<string, unknown>): Promise<APIGatewayProxyR
     adminGiven = String(data.firstname || adminGiven);
     adminFamily = String(data.lastname || adminFamily);
     featureSet = featureSetFromBundle(data.bundle_selector);
+    language = normalizeLanguage(data.language || language);
   } else if (demoAuthEnabled() && activationCode === "1234567890") {
     companyName = companyName || companySlug;
   } else return json(503, { error: "Handshake SaaS API is not configured" });
@@ -111,7 +115,7 @@ async function activate(body: Record<string, unknown>): Promise<APIGatewayProxyR
   if (existing && existing.subscriberEmail.toLowerCase() !== email) return json(409, { error: "That company name is already in use" });
   const adminName = `${adminGiven} ${adminFamily}`.trim();
   if (existing?.trialExpiresAt) {
-    const kept = { ...existing, plan: "monthly" as const, featureSet };
+    const kept = { ...existing, plan: "monthly" as const, featureSet, language };
     delete kept.trialExpiresAt;
     await store.putCompany(kept);
     await saveAccount({ email, name: adminName, passwordHash: hashPassword(password), groups: withSuperAdminGroup(email, ["admins"]), companySlug });
@@ -127,6 +131,7 @@ async function activate(body: Record<string, unknown>): Promise<APIGatewayProxyR
     featureSet,
     createdAt: new Date().toISOString(),
     subscriberEmail: email,
+    language,
   });
   await store.replaceTenant(companySlug, freshCompanyTenant(admin));
   await saveAccount({ email, name: adminName, passwordHash: hashPassword(password), groups: withSuperAdminGroup(email, ["admins"]), companySlug });
@@ -165,6 +170,7 @@ async function startTrial(body: Record<string, unknown>, adminKey: string): Prom
     createdAt: new Date().toISOString(),
     subscriberEmail: email,
     trialExpiresAt: expiresAt,
+    language: normalizeLanguage(body.language),
   };
   const tenant = freshCompanyTenant(admin);
   tenant.documents = [];
@@ -206,7 +212,8 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
     if (method === "POST" && path === "/auth/login") {
       const result = await loginWithPassword(String(body.email || ""), String(body.password || ""));
       if (!result) return json(401, { error: "Email or password is wrong" });
-      return json(200, result);
+      const home = await getStore().getCompany(result.user.companySlug);
+      return json(200, { ...result, language: home?.language ? normalizeLanguage(home.language) : undefined });
     }
     if (method === "POST" && path === "/auth/activate") return activate(body);
     if (method === "POST" && path === "/auth/trial") {

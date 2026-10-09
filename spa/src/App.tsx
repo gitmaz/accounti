@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ACCOUNTI_SIGNIN, type AccountiSignInCopy } from "@shared/signin-copy";
 import { api, loadSession, saveSession, type SessionUser } from "./api";
+import { appLanguage, localizedCopy, setAppLanguage, useAppLanguage, usePhrase } from "./i18n";
 import { BooksPage } from "./pages/BooksPage";
 import { DocumentPage } from "./pages/DocumentPage";
 import { ReconcilePage } from "./pages/ReconcilePage";
@@ -35,33 +36,45 @@ export function App() {
   );
 }
 
+function withLang(path: string, lang: string) {
+  if (!lang) return path;
+  return `${path}${path.includes("?") ? "&" : "?"}lang=${encodeURIComponent(lang)}`;
+}
+
+function hintedLanguage() {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("lang") || sessionStorage.getItem("accounti.language") || "";
+}
+
 function Guard({ children, admin }: { children: ReactNode; admin?: boolean }) {
   const { slug = "" } = useParams();
   const user = useUser();
-  if (!user) return <Navigate to={`/?next=/${slug}`} replace />;
-  if (user.companySlug && user.companySlug !== slug && !user.groups.includes("super-admins")) return <Navigate to={`/${user.companySlug}`} replace />;
+  const hinted = hintedLanguage();
+  if (!user) return <Navigate to={withLang(`/?next=/${slug}`, hinted)} replace />;
+  if (user.companySlug && user.companySlug !== slug && !user.groups.includes("super-admins")) return <Navigate to={withLang(`/${user.companySlug}`, hinted)} replace />;
   const isAdmin = user.groups.includes("admins") || user.groups.includes("super-admins");
-  if (admin && !isAdmin) return <Navigate to={`/${slug}`} replace />;
+  if (admin && !isAdmin) return <Navigate to={withLang(`/${slug}`, hinted)} replace />;
   return <Shell slug={slug}>{children}</Shell>;
 }
 
 function Shell({ slug, children }: { slug: string; children: ReactNode }) {
   const user = useUser();
   const navigate = useNavigate();
+  const say = usePhrase();
   const isAdmin = Boolean(user?.groups.includes("admins") || user?.groups.includes("super-admins"));
   return (
     <div className="ac-app">
       <header className="ac-top">
         <Link to={`/${slug}`} className="ac-brand"><span className="ac-mark" aria-hidden="true" />Accounti</Link>
         <nav>
-          <NavLink to={`/${slug}`} end>Books</NavLink>
-          <NavLink to={`/${slug}/reports`}>Reports</NavLink>
-          <NavLink to={`/${slug}/reconcile`}>Bank</NavLink>
-          {isAdmin ? <NavLink to={`/${slug}/settings`}>Settings</NavLink> : null}
+          <NavLink to={`/${slug}`} end>{say("Books")}</NavLink>
+          <NavLink to={`/${slug}/reports`}>{say("Reports")}</NavLink>
+          <NavLink to={`/${slug}/reconcile`}>{say("Bank")}</NavLink>
+          {isAdmin ? <NavLink to={`/${slug}/settings`}>{say("Settings")}</NavLink> : null}
         </nav>
         <div className="ac-who">
           <span>{user?.name}</span>
-          <button type="button" className="ac-text" onClick={() => { saveSession(null); navigate("/"); }}>Sign out</button>
+          <button type="button" className="ac-text" onClick={() => { saveSession(null); navigate("/"); }}>{say("Sign out")}</button>
         </div>
       </header>
       <main>{children}</main>
@@ -78,6 +91,9 @@ function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [copy, setCopy] = useState<AccountiSignInCopy>(ACCOUNTI_SIGNIN);
+  const say = usePhrase();
+  const language = useAppLanguage();
+  const shown = localizedCopy(language, ACCOUNTI_SIGNIN, copy);
 
   useEffect(() => {
     void api.signInCopy().then((row) => setCopy(row.copy)).catch(() => undefined);
@@ -91,7 +107,9 @@ function SignInPage() {
       const res = await api.login(email, password);
       if (!res.token || !res.user?.companySlug) throw new Error("Sign-in did not return an account");
       saveSession({ token: res.token, user: res.user });
-      navigate(next.startsWith("/") ? next : `/${res.user.companySlug}`);
+      if (res.language) setAppLanguage(res.language);
+      const lang = res.language || appLanguage();
+      navigate(withLang(next.startsWith("/") ? next : `/${res.user.companySlug}`, lang));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed");
     } finally {
@@ -102,22 +120,22 @@ function SignInPage() {
   return (
     <div className="ac-signin">
       <section className="ac-hero">
-        <p className="ac-kicker">{copy.kicker}</p>
-        <h1>{copy.title}</h1>
-        <p className="ac-lead">{copy.lead}</p>
+        <p className="ac-kicker">{shown.kicker}</p>
+        <h1>{shown.title}</h1>
+        <p className="ac-lead">{shown.lead}</p>
       </section>
       <form className="ac-card" onSubmit={(event) => void submit(event)}>
-        <h2>Sign in</h2>
-        <label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" /></label>
-        <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" /></label>
-        {error ? <p className="ac-error">{error}</p> : null}
-        <button className="ac-solid" type="submit" disabled={pending}>{pending ? "Signing in…" : "Sign in"}</button>
+        <h2>{say("Sign in")}</h2>
+        <label>{say("Email")}<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" /></label>
+        <label>{say("Password")}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" /></label>
+        {error ? <p className="ac-error">{say(error)}</p> : null}
+        <button className="ac-solid" type="submit" disabled={pending}>{pending ? say("Signing in…") : say("Sign in")}</button>
         <div className="ac-samples">
           {SAMPLES.map(([label, sample]) => (
-            <button key={sample} type="button" onClick={() => { setEmail(sample); setPassword("accounti123"); }}>{label}</button>
+            <button key={sample} type="button" onClick={() => { setEmail(sample); setPassword("accounti123"); }}>{say(label)}</button>
           ))}
         </div>
-        <p className="ac-fine">{copy.note}</p>
+        <p className="ac-fine">{shown.note}</p>
       </form>
     </div>
   );
@@ -131,15 +149,17 @@ function ActivatePage() {
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const say = usePhrase();
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError(null);
     try {
-      const res = await api.activate({ email, activationCode: code, companySlug: slug, password, companyName: slug });
+      const res = await api.activate({ email, activationCode: code, companySlug: slug, password, companyName: slug, language: appLanguage() });
       const login = await api.login(email, password);
       saveSession({ token: login.token, user: login.user });
-      navigate(`/${res.company.slug}`);
+      if (login.language) setAppLanguage(login.language);
+      navigate(withLang(`/${res.company.slug}`, login.language || appLanguage()));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Activation failed");
     }
@@ -147,13 +167,13 @@ function ActivatePage() {
 
   return (
     <form className="ac-card ac-activate" onSubmit={(event) => void submit(event)}>
-      <p className="ac-kicker">Activate {slug}</p>
-      <h1>Open the books</h1>
-      <label>Email<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-      <label>Activation code<input value={code} onChange={(event) => setCode(event.target.value)} /></label>
-      <label>Password<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-      {error ? <p className="ac-error">{error}</p> : null}
-      <button className="ac-solid" type="submit">Activate</button>
+      <p className="ac-kicker">{say("Activate {slug}", { slug })}</p>
+      <h1>{say("Open the books")}</h1>
+      <label>{say("Email")}<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
+      <label>{say("Activation code")}<input value={code} onChange={(event) => setCode(event.target.value)} /></label>
+      <label>{say("Password")}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
+      {error ? <p className="ac-error">{say(error)}</p> : null}
+      <button className="ac-solid" type="submit">{say("Activate")}</button>
     </form>
   );
 }

@@ -18,6 +18,7 @@ export type Company = {
   createdAt: string;
   subscriberEmail: string;
   trialExpiresAt?: string;
+  language?: string;
   featureSet?: "a" | "b" | "c";
 };
 
