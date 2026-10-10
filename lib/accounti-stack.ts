@@ -114,6 +114,7 @@ export class AccountiStack extends cdk.Stack {
       "/auth/login",
       "/auth/activate",
       "/auth/trial",
+      "/{slug}/language",
       "/{slug}/workspace",
       "/{slug}/contacts",
       "/{slug}/contacts/{id}",
