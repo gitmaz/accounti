@@ -62,6 +62,7 @@ export const api = {
   signInCopy: () => request<{ copy: AccountiSignInCopy }>("/signin-copy"),
   saveSignInCopy: (copy: AccountiSignInCopy) =>
     request<{ copy: AccountiSignInCopy }>("/signin-copy", { method: "PUT", body: JSON.stringify(copy) }),
+  companyLanguage: (slug: string) => request<{ slug: string; name: string; language?: string }>(`/${slug}/language`),
   login: (email: string, password: string) => request<{ token: string; user: SessionUser; language?: string }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
   activate: (body: Record<string, string>) => request<{ ok: boolean; company: { slug: string; name: string } }>("/auth/activate", { method: "POST", body: JSON.stringify(body) }),
   workspace: (slug: string) => request<Workspace>(`/${slug}/workspace`),

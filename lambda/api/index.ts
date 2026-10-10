@@ -197,6 +197,17 @@ async function signInCopy(method: string, event: APIGatewayProxyEventV2, body: R
   return json(200, { copy });
 }
 
+async function publicCompanyLanguage(slug: string): Promise<APIGatewayProxyResultV2> {
+  if (!isValidCompanySlug(slug) || isReservedCompanySlug(slug)) return json(404, { error: "Not found" });
+  const company = await getStore().getCompany(slug);
+  if (!company) return json(404, { error: "Not found" });
+  return json(200, {
+    slug: company.slug,
+    name: company.name,
+    language: company.language ? normalizeLanguage(company.language) : undefined,
+  });
+}
+
 export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
   const method = event.requestContext.http.method.toUpperCase();
   const path = (event.rawPath || "/").split("?")[0] || "/";
@@ -220,6 +231,8 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
       const key = event.headers?.["x-handshake-admin-key"] || event.headers?.["X-Handshake-Admin-Key"] || "";
       return startTrial(body, key);
     }
+    const languageRoute = method === "GET" ? path.match(/^\/([^/]+)\/language$/) : null;
+    if (languageRoute) return publicCompanyLanguage(languageRoute[1]);
 
     const match = path.match(/^\/([^/]+)(?:\/([^/]+))?(?:\/([^/]+))?(?:\/([^/]+))?$/);
     if (!match) return json(404, { error: "Not found" });

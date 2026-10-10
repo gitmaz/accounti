@@ -21,6 +21,24 @@ function useUser(): SessionUser | null {
   return loadSession()?.user ?? null;
 }
 
+function companySlugFrom(path: string): string {
+  if (!path.startsWith("/")) return "";
+  return path.split("?")[0].split("/").filter(Boolean)[0] || "";
+}
+
+function useCompanyLanguage(slug: string) {
+  useEffect(() => {
+    if (!slug) return;
+    let cancel = false;
+    void api.companyLanguage(slug).then((row) => {
+      if (!cancel && row.language) setAppLanguage(row.language);
+    }).catch(() => undefined);
+    return () => {
+      cancel = true;
+    };
+  }, [slug]);
+}
+
 export function App() {
   return (
     <Routes>
@@ -61,6 +79,7 @@ function Shell({ slug, children }: { slug: string; children: ReactNode }) {
   const user = useUser();
   const navigate = useNavigate();
   const say = usePhrase();
+  useCompanyLanguage(slug);
   const isAdmin = Boolean(user?.groups.includes("admins") || user?.groups.includes("super-admins"));
   return (
     <div className="ac-app">
@@ -94,6 +113,7 @@ function SignInPage() {
   const say = usePhrase();
   const language = useAppLanguage();
   const shown = localizedCopy(language, ACCOUNTI_SIGNIN, copy);
+  useCompanyLanguage(companySlugFrom(next));
 
   useEffect(() => {
     void api.signInCopy().then((row) => setCopy(row.copy)).catch(() => undefined);
