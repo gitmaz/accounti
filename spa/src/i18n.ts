@@ -116,7 +116,35 @@ const ar: Record<string, string> = {
   "Sample password accounti123. Company /harbour.": "كلمة المرور التجريبية accounti123. الشركة /harbour.",
 };
 
-const catalogs: Record<Exclude<AppLanguage, "en">, Record<string, string>> = { fr, nl, es, ar };
+const fa: Record<string, string> = {
+  "Email": "ایمیل",
+  "Password": "گذرواژه",
+  "Sign in": "ورود",
+  "Signing in…": "در حال ورود…",
+  "Sign out": "خروج",
+  "Settings": "تنظیمات",
+  "Sign-in failed": "ورود ناموفق بود",
+  "Sign-in did not return an account": "ورود حسابی برنگرداند",
+  "Activation code": "کد فعال‌سازی",
+  "Activate": "فعال‌سازی",
+  "Activation failed": "فعال‌سازی ناموفق بود",
+  "Opening…": "در حال باز شدن…",
+  "Books": "دفاتر",
+  "Reports": "گزارش‌ها",
+  "Bank": "بانک",
+  "Open the books": "باز کردن دفاتر",
+  "Activate {slug}": "فعال‌سازی {slug}",
+  "Admin": "مدیر",
+  "Accountant": "حسابدار",
+  "Approver": "تأییدکننده",
+  "Bookkeeper": "دفتردار",
+  "Auditor": "حسابرس",
+  "The books for an Australian company.": "دفاتر یک شرکت استرالیایی.",
+  "Tax invoices, supplier bills, GST, and a BAS worksheet. Approval is optional. The financial year starts on 1 July.": "فاکتور مالیاتی، صورتحساب تأمین‌کننده، GST و برگهٔ BAS. تأیید اختیاری است. سال مالی از ۱ ژوئیه شروع می‌شود.",
+  "Sample password accounti123. Company /harbour.": "گذرواژهٔ نمونه accounti123. شرکت /harbour.",
+};
+
+const catalogs: Record<Exclude<AppLanguage, "en">, Record<string, string>> = { fr, nl, es, ar, fa };
 
 export function phrase(language: string, text: string, vars?: Record<string, string | number>): string {
   const code = normalizeLanguage(language);
@@ -130,7 +158,7 @@ export function phrase(language: string, text: string, vars?: Record<string, str
 export function applyDocumentLanguage(language: string) {
   const code = normalizeLanguage(language);
   document.documentElement.lang = code;
-  document.documentElement.dir = code === "ar" ? "rtl" : "ltr";
+  document.documentElement.dir = code === "ar" || code === "fa" ? "rtl" : "ltr";
 }
 
 function readStored(): AppLanguage {

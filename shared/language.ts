@@ -1,4 +1,4 @@
-export const APP_LANGUAGES = ["en", "fr", "nl", "es", "ar"] as const;
+export const APP_LANGUAGES = ["en", "fr", "nl", "es", "ar", "fa"] as const;
 
 export type AppLanguage = (typeof APP_LANGUAGES)[number];
 
