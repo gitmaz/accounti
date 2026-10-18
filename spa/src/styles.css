@@ -78,3 +78,18 @@ h1, h2 { font-family: Fraunces, serif; font-weight: 560; }
   .ac-top, .ac-actions, .ac-comments { display: none; }
   .ac-page { padding: 0; }
 }
+
+
+/* Email and password stay left-to-right even when the UI is Arabic/Persian. */
+input[type="email"],
+input[type="password"],
+.secret-field input,
+input[autocomplete="username"],
+input[autocomplete="email"],
+input[autocomplete="current-password"],
+input[autocomplete="new-password"] {
+  direction: ltr;
+  text-align: left;
+  unicode-bidi: isolate;
+}
+
