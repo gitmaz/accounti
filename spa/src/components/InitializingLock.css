@@ -1,0 +1,44 @@
+.init-lock {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(12, 18, 28, 0.72);
+  backdrop-filter: blur(2px);
+  pointer-events: all;
+  cursor: wait;
+  user-select: none;
+}
+
+.init-lock__card {
+  background: rgba(20, 24, 32, 0.95);
+  color: #fff;
+  padding: 28px 32px;
+  border-radius: 14px;
+  width: min(420px, calc(100vw - 48px));
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+  text-align: center;
+}
+
+.init-lock__spinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 4px solid rgba(255, 255, 255, 0.25);
+  border-top-color: rgba(255, 255, 255, 0.95);
+  animation: init-lock-spin 0.9s linear infinite;
+  margin: 0 auto 14px;
+}
+
+.init-lock__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+@keyframes init-lock-spin {
+  to { transform: rotate(360deg); }
+}

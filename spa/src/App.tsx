@@ -2,6 +2,8 @@ import { FormEvent, useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ACCOUNTI_SIGNIN, type AccountiSignInCopy } from "@shared/signin-copy";
 import { api, loadSession, saveSession, type SessionUser } from "./api";
+import { InitializingLock } from "./components/InitializingLock";
+import "./components/InitializingLock.css";
 import { appLanguage, localizedCopy, setAppLanguage, useAppLanguage, usePhrase } from "./i18n";
 import { BooksPage } from "./pages/BooksPage";
 import { DocumentPage } from "./pages/DocumentPage";
@@ -169,11 +171,13 @@ function ActivatePage() {
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
   const say = usePhrase();
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    setPending(true);
     try {
       const res = await api.activate({ email, activationCode: code, companySlug: slug, password, companyName: slug, language: appLanguage() });
       const login = await api.login(email, password);
@@ -182,18 +186,23 @@ function ActivatePage() {
       navigate(withLang(`/${res.company.slug}`, login.language || appLanguage()));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Activation failed");
+    } finally {
+      setPending(false);
     }
   }
 
   return (
-    <form className="ac-card ac-activate" onSubmit={(event) => void submit(event)}>
-      <p className="ac-kicker">{say("Activate {slug}", { slug })}</p>
-      <h1>{say("Open the books")}</h1>
-      <label>{say("Email")}<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-      <label>{say("Activation code")}<input value={code} onChange={(event) => setCode(event.target.value)} /></label>
-      <label>{say("Password")}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-      {error ? <p className="ac-error">{say(error)}</p> : null}
-      <button className="ac-solid" type="submit">{say("Activate")}</button>
-    </form>
+    <>
+      <InitializingLock open={pending} message={say("Initializing. Please wait...")} />
+      <form className="ac-card ac-activate" onSubmit={(event) => void submit(event)}>
+        <p className="ac-kicker">{say("Activate {slug}", { slug })}</p>
+        <h1>{say("Open the books")}</h1>
+        <label>{say("Email")}<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={pending} /></label>
+        <label>{say("Activation code")}<input value={code} onChange={(event) => setCode(event.target.value)} disabled={pending} /></label>
+        <label>{say("Password")}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={pending} /></label>
+        {error ? <p className="ac-error">{say(error)}</p> : null}
+        <button className="ac-solid" type="submit" disabled={pending}>{pending ? say("Activating…") : say("Activate")}</button>
+      </form>
+    </>
   );
 }
