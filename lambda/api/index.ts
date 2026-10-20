@@ -84,7 +84,7 @@ async function activate(body: Record<string, unknown>): Promise<APIGatewayProxyR
     const res = await fetch(`${handshake}/verification/activate`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email, activation_code: activationCode, plugin_name: "accounti" }),
+      body: JSON.stringify({ email, activation_code: activationCode, company_slug: companySlug, plugin_name: "accounti" }),
     });
     const data = (await res.json().catch(() => ({}))) as {
       ok?: boolean;
