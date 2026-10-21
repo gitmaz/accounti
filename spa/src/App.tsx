@@ -109,8 +109,9 @@ function SignInPage() {
   const next = params.get("next") || "";
   const company = routeSlug || companySlugFrom(next);
   const navigate = useNavigate();
-  const [email, setEmail] = useState("bookkeeper@accounti.demo");
-  const [password, setPassword] = useState("accounti123");
+  const hintedEmail = params.get("email")?.trim() || "";
+  const [email, setEmail] = useState(hintedEmail || "bookkeeper@accounti.demo");
+  const [password, setPassword] = useState(hintedEmail ? "" : "accounti123");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [copy, setCopy] = useState<AccountiSignInCopy>(ACCOUNTI_SIGNIN);

@@ -225,6 +225,7 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
       if (!result) return json(401, { error: "Email or password is wrong" });
       if ("error" in result) return json(403, result);
       const home = await getStore().getCompany(result.user.companySlug);
+      if (trialEnded(home)) return json(402, { error: "This trial has ended" });
       return json(200, { ...result, language: home?.language ? normalizeLanguage(home.language) : undefined });
     }
     if (method === "POST" && path === "/auth/activate") return activate(body);
