@@ -1,7 +1,7 @@
-import { FormEvent, useEffect, useState, type ReactNode } from "react";
+import { FormEvent, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Link, NavLink, Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ACCOUNTI_SIGNIN, type AccountiSignInCopy } from "@shared/signin-copy";
-import { api, loadSession, saveSession, type SessionUser } from "./api";
+import { api, loadSession, saveSession, subscribeSession, type SessionUser } from "./api";
 import { InitializingLock } from "./components/InitializingLock";
 import "./components/InitializingLock.css";
 import { appLanguage, localizedCopy, setAppLanguage, useAppLanguage, usePhrase } from "./i18n";
@@ -20,7 +20,7 @@ const SAMPLES = [
 ] as const;
 
 function useUser(): SessionUser | null {
-  return loadSession()?.user ?? null;
+  return useSyncExternalStore(subscribeSession, loadSession, () => null)?.user ?? null;
 }
 
 function companySlugFrom(path: string): string {
@@ -70,7 +70,7 @@ function Guard({ children, admin }: { children: ReactNode; admin?: boolean }) {
   const { slug = "" } = useParams();
   const user = useUser();
   const hinted = hintedLanguage();
-  if (!user) return <Navigate to={withLang(`/?next=/${slug}`, hinted)} replace />;
+  if (!user) return <SignInPage />;
   if (user.companySlug && user.companySlug !== slug && !user.groups.includes("super-admins")) return <Navigate to={withLang(`/${user.companySlug}`, hinted)} replace />;
   const isAdmin = user.groups.includes("admins") || user.groups.includes("super-admins");
   if (admin && !isAdmin) return <Navigate to={withLang(`/${slug}`, hinted)} replace />;
@@ -79,7 +79,6 @@ function Guard({ children, admin }: { children: ReactNode; admin?: boolean }) {
 
 function Shell({ slug, children }: { slug: string; children: ReactNode }) {
   const user = useUser();
-  const navigate = useNavigate();
   const say = usePhrase();
   useCompanyLanguage(slug);
   const isAdmin = Boolean(user?.groups.includes("admins") || user?.groups.includes("super-admins"));
@@ -95,7 +94,7 @@ function Shell({ slug, children }: { slug: string; children: ReactNode }) {
         </nav>
         <div className="ac-who">
           <span>{user?.name}</span>
-          <button type="button" className="ac-text" onClick={() => { saveSession(null); navigate("/"); }}>{say("Sign out")}</button>
+          <button type="button" className="ac-text" onClick={() => saveSession(null)}>{say("Sign out")}</button>
         </div>
       </header>
       <main>{children}</main>
@@ -105,7 +104,9 @@ function Shell({ slug, children }: { slug: string; children: ReactNode }) {
 
 function SignInPage() {
   const [params] = useSearchParams();
+  const { slug: routeSlug = "" } = useParams();
   const next = params.get("next") || "";
+  const company = routeSlug || companySlugFrom(next);
   const navigate = useNavigate();
   const [email, setEmail] = useState("bookkeeper@accounti.demo");
   const [password, setPassword] = useState("accounti123");
@@ -115,7 +116,7 @@ function SignInPage() {
   const say = usePhrase();
   const language = useAppLanguage();
   const shown = localizedCopy(language, ACCOUNTI_SIGNIN, copy);
-  useCompanyLanguage(companySlugFrom(next));
+  useCompanyLanguage(company);
 
   useEffect(() => {
     void api.signInCopy().then((row) => setCopy(row.copy)).catch(() => undefined);
@@ -131,6 +132,9 @@ function SignInPage() {
       saveSession({ token: res.token, user: res.user });
       if (res.language) setAppLanguage(res.language);
       const lang = res.language || appLanguage();
+      const path = window.location.pathname;
+      const allowedHere = Boolean(company) && (company === res.user.companySlug || res.user.groups.includes("super-admins"));
+      if (allowedHere && (path === `/${company}` || path.startsWith(`/${company}/`))) return;
       navigate(withLang(next.startsWith("/") ? next : `/${res.user.companySlug}`, lang));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed");

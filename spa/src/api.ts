@@ -6,8 +6,11 @@ export type Session = { token: string; user: SessionUser };
 
 const KEY = "accounti.session";
 
-export function loadSession(): Session | null {
-  const raw = localStorage.getItem(KEY);
+const listeners = new Set<() => void>();
+let rawCache: string | null | undefined;
+let snapshot: Session | null = null;
+
+function parseSession(raw: string | null): Session | null {
   if (!raw) return null;
   try {
     return JSON.parse(raw) as Session;
@@ -16,9 +19,26 @@ export function loadSession(): Session | null {
   }
 }
 
+export function loadSession(): Session | null {
+  const raw = localStorage.getItem(KEY);
+  if (raw !== rawCache) {
+    rawCache = raw;
+    snapshot = parseSession(raw);
+  }
+  return snapshot;
+}
+
+export function subscribeSession(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
 export function saveSession(session: Session | null) {
   if (!session) localStorage.removeItem(KEY);
   else localStorage.setItem(KEY, JSON.stringify(session));
+  rawCache = localStorage.getItem(KEY);
+  snapshot = session;
+  listeners.forEach((listener) => listener());
 }
 
 export type Workspace = {
