@@ -80,6 +80,26 @@ h1, h2 { font-family: Fraunces, serif; font-weight: 560; }
 }
 
 
+.aside { color: #5c675f; font-weight: 400; margin-inline-start: 0.35em; }
+.hint, .remember { color: #5c675f; font-size: 13px; line-height: 1.45; margin: 0; }
+.secret-field > span { position: relative; display: block; }
+.secret-field input { width: 100%; padding-inline-end: 44px; }
+.secret-eye {
+  position: absolute;
+  inset-inline-end: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+.secret-eye:disabled { opacity: 0.45; cursor: wait; }
+
 /* Email and password stay left-to-right even when the UI is Arabic/Persian. */
 input[type="email"],
 input[type="password"],

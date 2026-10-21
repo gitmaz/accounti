@@ -3,6 +3,7 @@ import { Link, NavLink, Navigate, Route, Routes, useNavigate, useParams, useSear
 import { ACCOUNTI_SIGNIN, type AccountiSignInCopy } from "@shared/signin-copy";
 import { api, loadSession, saveSession, subscribeSession, type SessionUser } from "./api";
 import { InitializingLock } from "./components/InitializingLock";
+import { SecretField } from "./components/SecretField";
 import "./components/InitializingLock.css";
 import { appLanguage, localizedCopy, setAppLanguage, useAppLanguage, usePhrase } from "./i18n";
 import { BooksPage } from "./pages/BooksPage";
@@ -174,6 +175,7 @@ function ActivatePage() {
   const [email, setEmail] = useState(params.get("email") || "");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const say = usePhrase();
@@ -181,16 +183,16 @@ function ActivatePage() {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    if (password !== confirm) {
+      setError("Passwords do not match");
+      return;
+    }
     setPending(true);
     try {
-      const res = await api.activate({ email, activationCode: code, companySlug: slug, password, companyName: slug, language: appLanguage() });
-      const login = await api.login(email, password, slug);
-      saveSession({ token: login.token, user: login.user });
-      if (login.language) setAppLanguage(login.language);
-      navigate(withLang(`/${res.company.slug}`, login.language || appLanguage()));
+      await api.activate({ email, activationCode: code, companySlug: slug, password, companyName: slug, language: appLanguage() });
+      navigate(withLang(`/${slug}`, params.get("lang") || appLanguage()));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Activation failed");
-    } finally {
       setPending(false);
     }
   }
@@ -202,10 +204,30 @@ function ActivatePage() {
         <p className="ac-kicker">{say("Activate {slug}", { slug })}</p>
         <h1>{say("Open the books")}</h1>
         <label>{say("Email")}<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} disabled={pending} /></label>
-        <label>{say("Activation code")}<input value={code} onChange={(event) => setCode(event.target.value)} disabled={pending} /></label>
-        <label>{say("Password")}<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} disabled={pending} /></label>
+        <label>{say("Activation code")}<input value={code} inputMode="numeric" onChange={(event) => setCode(event.target.value.replace(/[^0-9]/g, ""))} disabled={pending} required /></label>
+        <SecretField
+          label={<>{say("Password")} <span className="aside">{say("(Please choose one)")}</span></>}
+          value={password}
+          onChange={setPassword}
+          autoComplete="new-password"
+          required
+          minLength={8}
+          disabled={pending}
+        />
+        <p className="hint">{say("At least 8 characters. You will use this to sign in.")}</p>
+        <SecretField
+          label={say("Confirm password")}
+          value={confirm}
+          onChange={setConfirm}
+          autoComplete="new-password"
+          required
+          minLength={8}
+          disabled={pending}
+          confirm
+        />
+        <p className="remember">{say("Remember these credentials. They will be your site's Admin login credentials.")}</p>
         {error ? <p className="ac-error">{say(error)}</p> : null}
-        <button className="ac-solid" type="submit" disabled={pending}>{pending ? say("Activating…") : say("Activate")}</button>
+        <button className="ac-solid" type="submit" disabled={pending}>{pending ? say("Initializing. Please wait...") : say("Activate")}</button>
       </form>
     </>
   );
