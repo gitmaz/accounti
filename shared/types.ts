@@ -22,12 +22,22 @@ export type Company = {
   featureSet?: "a" | "b" | "c";
 };
 
+/** One email can sign in to several companies. Each company keeps its own password. */
+export type CompanyLogin = {
+  companySlug: string;
+  passwordHash: string;
+  groups: string[];
+  name: string;
+};
+
 export type Account = {
   email: string;
   name: string;
   passwordHash: string;
   groups: string[];
   companySlug: string;
+  /** Further companies for this email. The fields above stay the first company. */
+  logins?: CompanyLogin[];
 };
 
 export type SessionUser = {

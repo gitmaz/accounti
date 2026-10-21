@@ -127,7 +127,7 @@ function SignInPage() {
     setPending(true);
     setError(null);
     try {
-      const res = await api.login(email, password);
+      const res = await api.login(email, password, company);
       if (!res.token || !res.user?.companySlug) throw new Error("Sign-in did not return an account");
       saveSession({ token: res.token, user: res.user });
       if (res.language) setAppLanguage(res.language);
@@ -184,7 +184,7 @@ function ActivatePage() {
     setPending(true);
     try {
       const res = await api.activate({ email, activationCode: code, companySlug: slug, password, companyName: slug, language: appLanguage() });
-      const login = await api.login(email, password);
+      const login = await api.login(email, password, slug);
       saveSession({ token: login.token, user: login.user });
       if (login.language) setAppLanguage(login.language);
       navigate(withLang(`/${res.company.slug}`, login.language || appLanguage()));

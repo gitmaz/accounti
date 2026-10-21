@@ -11,7 +11,7 @@ import { normalizeLanguage } from "../../shared/language";
 import { readSignInCopy } from "../../shared/signin-copy";
 import { isSuperAdmin, withSuperAdminGroup } from "../../shared/super-admin";
 import type { BookDocument, Company, Member, Reconciliation, Role, SmtpSettings, TenantData } from "../../shared/types";
-import { accountGroups, demoAuthEnabled, identityFromEvent, loginWithPassword, saveAccount } from "./auth";
+import { accountGroups, accountHasCompany, demoAuthEnabled, identityFromEvent, loginWithPassword, saveAccount } from "./auth";
 import { memberFor, parseAccount, parseContact, parseDocument, roleOf, transitionDocument } from "./books";
 import { hashPassword } from "./passwords";
 import { ensureDemo, getStore } from "./store";
@@ -159,7 +159,7 @@ async function startTrial(body: Record<string, unknown>, adminKey: string): Prom
     const same = existing.subscriberEmail.toLowerCase() === email;
     return json(409, { error: same ? "A trial was already started for this email" : "That company name is already in use", trial_used: same });
   }
-  if (await store.getAccount(email)) return json(409, { error: "This email already has an Accounti login", trial_used: true });
+  if (accountHasCompany(await store.getAccount(email), slug)) return json(409, { error: "This email already has an Accounti login", trial_used: true });
   const admin = { id: `member-${randomUUID().slice(0, 8)}`, email, name };
   const company: Company = {
     slug,
@@ -221,8 +221,9 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
     const body = bodyOf(event);
     if (path === "/signin-copy") return signInCopy(method, event, body);
     if (method === "POST" && path === "/auth/login") {
-      const result = await loginWithPassword(String(body.email || ""), String(body.password || ""));
+      const result = await loginWithPassword(String(body.email || ""), String(body.password || ""), String(body.companySlug || ""));
       if (!result) return json(401, { error: "Email or password is wrong" });
+      if ("error" in result) return json(403, result);
       const home = await getStore().getCompany(result.user.companySlug);
       return json(200, { ...result, language: home?.language ? normalizeLanguage(home.language) : undefined });
     }
@@ -404,7 +405,7 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
       const personRole = isRole(body.role) ? body.role : "bookkeeper";
       if (!email.includes("@") || !name) return json(400, { error: "Name and email are required" });
       if (password.length < 8) return json(400, { error: "Password must be at least 8 characters" });
-      if (await store.getAccount(email)) return json(409, { error: "That email already signs in" });
+      if (accountHasCompany(await store.getAccount(email), slug)) return json(409, { error: "That email already signs in" });
       const person: Member = { id: `member-${randomUUID().slice(0, 8)}`, email, name, role: personRole, notify: body.notify === true };
       tenant.members.push(person);
       await store.replaceTenant(slug, tenant);
