@@ -22,6 +22,9 @@ export function SettingsPage() {
   const [account, setAccount] = useState({ code: "", name: "", type: "expense" });
   const [person, setPerson] = useState({ name: "", email: "", password: "", role: "bookkeeper" as Role });
   const [smtp, setSmtp] = useState({ host: "", port: 587, username: "", password: "", encryption: "tls" as "" | "tls" | "ssl", from: "" });
+  const [sesFromEmail, setSesFromEmail] = useState("");
+  const [smsEnabled, setSmsEnabled] = useState(false);
+  const [smsSenderId, setSmsSenderId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -31,6 +34,9 @@ export function SettingsPage() {
       setFields(data.fields);
       setAbn(data.company.abn);
       setSmtp({ ...data.smtp, password: "" });
+      setSesFromEmail(data.sesFromEmail || "");
+      setSmsEnabled(Boolean(data.smsEnabled));
+      setSmsSenderId(data.smsSenderId || "");
     }).catch((err: Error) => setError(err.message));
   }, [slug]);
 
@@ -47,7 +53,12 @@ export function SettingsPage() {
     setSaved(false);
     try {
       const body: Record<string, unknown> = { abn, fields, approvalEnabled: workspace?.approvalEnabled };
-      if (workspace?.smtpAccess) body.smtp = smtp;
+      if (workspace?.smtpAccess) {
+        body.smtp = smtp;
+        body.sesFromEmail = sesFromEmail;
+        body.smsEnabled = smsEnabled;
+        body.smsSenderId = smsSenderId;
+      }
       const next = await api.saveWorkspace(slug, body);
       setWorkspace(next);
       setSaved(true);
@@ -131,7 +142,17 @@ export function SettingsPage() {
             <label>Username<input value={smtp.username} onChange={(event) => setSmtp({ ...smtp, username: event.target.value })} /></label>
             <label>Password<input type="password" value={smtp.password} onChange={(event) => setSmtp({ ...smtp, password: event.target.value })} /></label>
             <label>From<input value={smtp.from} onChange={(event) => setSmtp({ ...smtp, from: event.target.value })} /></label>
+            <label>SES from address<input value={sesFromEmail} onChange={(event) => setSesFromEmail(event.target.value)} /></label>
+            <label className="ac-check"><input type="checkbox" checked={smsEnabled} onChange={(event) => setSmsEnabled(event.target.checked)} />Send SMS</label>
+            <label>Sender id<input value={smsSenderId} maxLength={11} onChange={(event) => setSmsSenderId(event.target.value)} /></label>
           </div>
+          <p className="ac-fine">SMS is saved even when Accounti does not send texts yet. Texts go out only when AWS has an approved origination identity.</p>
+        </section>
+      ) : null}
+      {superAdmin ? (
+        <section>
+          <h2>Subscription</h2>
+          <p className="ac-fine">Plan {workspace.company.plan}. Feature set {workspace.company.featureSet.toUpperCase()}.</p>
         </section>
       ) : null}
       <button className="ac-solid" type="submit">Save settings</button>

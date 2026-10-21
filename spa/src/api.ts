@@ -47,6 +47,9 @@ export type Workspace = {
   features: string[];
   smtpAccess: boolean;
   smtp: SmtpSettings;
+  sesFromEmail: string;
+  smsEnabled: boolean;
+  smsSenderId: string;
   approvalEnabled: boolean;
   fields: DialogFieldsConfig;
   accounts: LedgerAccount[];

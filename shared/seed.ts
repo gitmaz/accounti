@@ -29,6 +29,9 @@ export function emptyTenant(): TenantData {
   return {
     fields: emptyFields(),
     smtp: emptySmtp(),
+    sesFromEmail: "",
+    smsEnabled: false,
+    smsSenderId: "",
     mailLog: [],
     approvalEnabled: true,
     accounts: defaultAccounts(),

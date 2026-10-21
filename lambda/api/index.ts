@@ -52,6 +52,9 @@ function workspace(company: Company, tenant: TenantData, role: Role, revealMail:
     features: accountiFeatures(set),
     smtpAccess: revealMail,
     smtp: publicSmtp(tenant.smtp, revealMail),
+    sesFromEmail: revealMail ? tenant.sesFromEmail || "" : "",
+    smsEnabled: revealMail ? Boolean(tenant.smsEnabled) : false,
+    smsSenderId: revealMail ? tenant.smsSenderId || "" : "",
     approvalEnabled: tenant.approvalEnabled,
     fields: tenant.fields,
     accounts: tenant.accounts,
@@ -281,6 +284,15 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
           from: String(smtp.from ?? tenant.smtp.from).trim(),
           password: String(smtp.password || "").trim() ? String(smtp.password) : tenant.smtp.password,
         };
+      }
+      if (revealMail) {
+        if (typeof body.sesFromEmail === "string") {
+          const ses = body.sesFromEmail.trim().toLowerCase();
+          if (ses && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ses)) return json(400, { error: "The SES from address must be an email" });
+          tenant.sesFromEmail = ses;
+        }
+        if (typeof body.smsEnabled === "boolean") tenant.smsEnabled = body.smsEnabled;
+        if (typeof body.smsSenderId === "string") tenant.smsSenderId = body.smsSenderId.replace(/[^A-Za-z0-9]/g, "").slice(0, 11);
       }
       await store.replaceTenant(slug, tenant);
       return json(200, workspace(company, tenant, role, revealMail));

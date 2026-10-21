@@ -156,6 +156,11 @@ export type MailNote = {
 export type TenantData = {
   fields: DialogFieldsConfig;
   smtp: SmtpSettings;
+  /** Amazon SES from address. Super-admin only. */
+  sesFromEmail: string;
+  /** Saved even when this product does not send texts yet. */
+  smsEnabled: boolean;
+  smsSenderId: string;
   mailLog: MailNote[];
   approvalEnabled: boolean;
   accounts: LedgerAccount[];
