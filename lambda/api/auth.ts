@@ -2,7 +2,7 @@ import type { APIGatewayProxyEventV2 } from "aws-lambda";
 
 import { groupsForRole } from "../../shared/access";
 import type { Account, CompanyLogin, Role, SessionUser } from "../../shared/types";
-import { withSuperAdminGroup } from "../../shared/super-admin";
+import { isSuperAdmin, withSuperAdminGroup } from "../../shared/super-admin";
 import { readDemoToken, signDemoToken, verifyPassword } from "./passwords";
 import { getStore } from "./store";
 
@@ -93,9 +93,23 @@ export async function loginWithPassword(
   password: string,
   companySlug = "",
 ): Promise<{ token: string; user: SessionUser } | { error: string } | null> {
-  const stored = await getStore().getAccount(email.trim().toLowerCase());
+  const store = getStore();
+  const stored = await store.getAccount(email.trim().toLowerCase());
   if (!stored) return null;
-  const selected = accountForLogin(stored, companySlug);
+  let selected = accountForLogin(stored, companySlug);
+  const SUPER_ADMIN_ANY_COMPANY_LOGIN = "super-admin-any-company";
+  if (!selected && companySlug.trim() && isSuperAdmin(stored) && SUPER_ADMIN_ANY_COMPANY_LOGIN) {
+    const slug = companySlug.trim().toLowerCase();
+    if (await store.getCompany(slug)) {
+      selected = {
+        email: stored.email,
+        name: stored.name,
+        passwordHash: stored.passwordHash,
+        groups: withSuperAdminGroup(stored.email, stored.groups),
+        companySlug: slug,
+      };
+    }
+  }
   if (!selected) return null;
   if ("error" in selected) return selected;
   const account = selected;
