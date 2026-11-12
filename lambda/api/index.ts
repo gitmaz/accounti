@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { canDraft, canManageBooks, canManageSettings, isRole } from "../../shared/access";
 import { accountiFeatures, accountiHas, companyFeatureSet } from "../../shared/accounti-features";
 import { featureSetFromBundle, type FeatureSetId } from "../../shared/featureset";
-import { isReservedCompanySlug, isValidCompanySlug, slugifyCompanyName } from "../../lib/company";
+import { AUTOTEST_COMPANY_SLUG, isReservedCompanySlug, isValidCompanySlug, slugifyCompanyName } from "../../lib/company";
 import { balanceSheet, bankLines, basWorksheet, profitAndLoss, reconciliationDifference } from "../../shared/ledger";
 import { freshCompanyTenant } from "../../shared/seed";
 import { normalizeLanguage } from "../../shared/language";
@@ -14,7 +14,7 @@ import type { BookDocument, Company, Member, Reconciliation, Role, SmtpSettings,
 import { accountGroups, accountHasCompany, demoAuthEnabled, identityFromEvent, loginWithPassword, saveAccount } from "./auth";
 import { memberFor, parseAccount, parseContact, parseDocument, roleOf, transitionDocument } from "./books";
 import { hashPassword } from "./passwords";
-import { ensureDemo, getStore } from "./store";
+import { ensureDemo, getStore, resetAutotestTenant } from "./store";
 
 const json = (statusCode: number, body: unknown): APIGatewayProxyResultV2 => ({
   statusCode,
@@ -232,6 +232,11 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
       return json(200, { ...result, language: home?.language ? normalizeLanguage(home.language) : undefined });
     }
     if (method === "POST" && path === "/auth/activate") return activate(body);
+    if (method === "POST" && path === "/auth/e2e/reset") {
+      if (!demoAuthEnabled()) return json(404, { error: "Not found" });
+      await resetAutotestTenant();
+      return json(200, { ok: true, company: AUTOTEST_COMPANY_SLUG });
+    }
     if (method === "POST" && path === "/auth/trial") {
       const key = event.headers?.["x-handshake-admin-key"] || event.headers?.["X-Handshake-Admin-Key"] || "";
       return startTrial(body, key);

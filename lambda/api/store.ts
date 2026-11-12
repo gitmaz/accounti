@@ -1,11 +1,21 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname } from "path";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
+import { DeleteCommand, DynamoDBDocumentClient, GetCommand, PutCommand, ScanCommand } from "@aws-sdk/lib-dynamodb";
 
+import { AUTOTEST_COMPANY_SLUG } from "../../lib/company";
 import { groupsForRole } from "../../shared/access";
 import { normalizeDialogFieldsConfig } from "../../shared/fields";
-import { demoCompany, demoMembers, demoTenant, emptySmtp, emptyTenant } from "../../shared/seed";
+import {
+  autotestAccountSpecs,
+  autotestCompany,
+  autotestTenant,
+  demoCompany,
+  demoMembers,
+  demoTenant,
+  emptySmtp,
+  emptyTenant,
+} from "../../shared/seed";
 import { withSuperAdminGroup } from "../../shared/super-admin";
 import type { Account, Company, TenantData } from "../../shared/types";
 import { hashPassword, SAMPLE_PASSWORD } from "./passwords";
@@ -50,6 +60,8 @@ export interface Store {
   putCompany(company: Company): Promise<void>;
   getAccount(email: string): Promise<Account | null>;
   putAccount(account: Account): Promise<void>;
+  deleteAccount(email: string): Promise<void>;
+  listAccounts(): Promise<Account[]>;
   load(slug: string): Promise<TenantData>;
   replaceTenant(slug: string, data: TenantData): Promise<void>;
   getSignIn(): Promise<Record<string, string> | null>;
@@ -107,6 +119,13 @@ class MemoryStore implements Store {
     else this.data.accounts.push(account);
     this.flush();
   }
+  async deleteAccount(email: string) {
+    this.data.accounts = this.data.accounts.filter((account) => account.email !== email);
+    this.flush();
+  }
+  async listAccounts() {
+    return [...this.data.accounts];
+  }
   async load(slug: string) {
     return hydrate(structuredClone(this.data.tenants[slug] || emptyTenant()));
   }
@@ -154,6 +173,13 @@ class DynamoStore implements Store {
   async putAccount(account: Account) {
     await this.doc.send(new PutCommand({ TableName: this.accounts(), Item: account }));
   }
+  async deleteAccount(email: string) {
+    await this.doc.send(new DeleteCommand({ TableName: this.accounts(), Key: { email } }));
+  }
+  async listAccounts() {
+    const res = await this.doc.send(new ScanCommand({ TableName: this.accounts() }));
+    return (res.Items || []) as Account[];
+  }
   async load(slug: string) {
     const res = await this.doc.send(new GetCommand({ TableName: this.books(), Key: { slug } }));
     return hydrate((res.Item as { tenant?: TenantData } | undefined)?.tenant);
@@ -184,11 +210,47 @@ export function getStore(): Store {
   return cached;
 }
 
+async function ensureAccountSpecs(store: Store, specs: Array<Omit<Account, "passwordHash">>): Promise<void> {
+  const passwordHash = hashPassword(SAMPLE_PASSWORD);
+  for (const spec of specs) {
+    const existing = await store.getAccount(spec.email);
+    if (!existing) await store.putAccount({ ...spec, passwordHash });
+    else if (existing.companySlug !== spec.companySlug) await store.putAccount({ ...existing, ...spec, passwordHash: existing.passwordHash });
+  }
+}
+
+export async function ensureAutotestTenant(store: Store = getStore()): Promise<void> {
+  if (process.env.DEMO_AUTH === "0") return;
+  if (!(await store.getCompany(AUTOTEST_COMPANY_SLUG))) await store.putCompany(autotestCompany());
+  await ensureAccountSpecs(store, autotestAccountSpecs());
+  const tenant = await store.load(AUTOTEST_COMPANY_SLUG);
+  if (tenant.members.length === 0) await store.replaceTenant(AUTOTEST_COMPANY_SLUG, autotestTenant());
+}
+
+/** Wipe Autotest Lab books and restore the seed roster for a clean browser run. */
+export async function resetAutotestTenant(store: Store = getStore()): Promise<void> {
+  if (process.env.DEMO_AUTH === "0") throw new Error("E2E reset is only available when DEMO_AUTH is on");
+  await store.putCompany(autotestCompany());
+  const passwordHash = hashPassword(SAMPLE_PASSWORD);
+  const seedEmails = new Set(autotestAccountSpecs().map((spec) => spec.email));
+  for (const account of await store.listAccounts()) {
+    if (account.companySlug === AUTOTEST_COMPANY_SLUG && !seedEmails.has(account.email)) {
+      await store.deleteAccount(account.email);
+    }
+  }
+  for (const spec of autotestAccountSpecs()) {
+    await store.putAccount({ ...spec, passwordHash });
+  }
+  await store.replaceTenant(AUTOTEST_COMPANY_SLUG, autotestTenant());
+}
+
 export async function ensureDemo(): Promise<void> {
   if (process.env.DEMO_AUTH === "0") return;
   const store = getStore();
-  if (await store.getCompany("harbour")) return;
-  await store.putCompany(demoCompany());
-  await store.replaceTenant("harbour", demoTenant());
-  for (const account of demoAccounts()) await store.putAccount(account);
+  if (!(await store.getCompany("harbour"))) {
+    await store.putCompany(demoCompany());
+    await store.replaceTenant("harbour", demoTenant());
+    for (const account of demoAccounts()) await store.putAccount(account);
+  }
+  await ensureAutotestTenant(store);
 }

@@ -1,5 +1,7 @@
+import { AUTOTEST_COMPANY_NAME, AUTOTEST_COMPANY_SLUG } from "../lib/company";
+import { groupsForRole } from "./access";
 import { emptyFields } from "./fields";
-import type { BookDocument, Company, Contact, LedgerAccount, Member, TenantData } from "./types";
+import type { Account, BookDocument, Company, Contact, LedgerAccount, Member, TenantData } from "./types";
 
 export function emptySmtp() {
   return { host: "", port: 587, username: "", password: "", encryption: "tls" as const, from: "" };
@@ -172,5 +174,71 @@ export function demoTenant(): TenantData {
     contacts: [customer, supplier],
     documents: demoDocuments(),
     members: demoMembers(),
+  };
+}
+
+const AT_ADMIN = "at-member-admin";
+const AT_ACCOUNTANT = "at-member-accountant";
+const AT_APPROVER = "at-member-approver";
+const AT_BOOK = "at-member-book";
+const AT_AUDIT = "at-member-audit";
+
+const atCustomer: Contact = {
+  id: "at-contact-customer",
+  name: "Northside Cafe",
+  abn: "53004085616",
+  email: "accounts@northside.example",
+  kind: "customer",
+  extra: {},
+};
+
+const atSupplier: Contact = {
+  id: "at-contact-supplier",
+  name: "Office Lane Pty Ltd",
+  abn: "51824753556",
+  email: "billing@officelance.example",
+  kind: "supplier",
+  extra: {},
+};
+
+export function autotestCompany(): Company {
+  return {
+    slug: AUTOTEST_COMPANY_SLUG,
+    name: AUTOTEST_COMPANY_NAME,
+    abn: HARBOUR_ABN,
+    plan: "free",
+    featureSet: "c",
+    createdAt: "2026-07-01T00:00:00.000Z",
+    subscriberEmail: "admin@autotest.accounti",
+  };
+}
+
+export function autotestMembers(): Member[] {
+  return [
+    { id: AT_ADMIN, email: "admin@autotest.accounti", name: "Pat Admin", role: "admin", notify: true },
+    { id: AT_ACCOUNTANT, email: "accountant@autotest.accounti", name: "Alex Accountant", role: "accountant", notify: true },
+    { id: AT_APPROVER, email: "approver@autotest.accounti", name: "Avery Approver", role: "approver", notify: true },
+    { id: AT_BOOK, email: "bookkeeper@autotest.accounti", name: "Blair Bookkeeper", role: "bookkeeper", notify: false },
+    { id: AT_AUDIT, email: "auditor@autotest.accounti", name: "Audra Auditor", role: "auditor", notify: false },
+  ];
+}
+
+export function autotestAccountSpecs(): Array<Omit<Account, "passwordHash">> {
+  return autotestMembers().map((member) => ({
+    email: member.email,
+    name: member.name,
+    groups: groupsForRole(member.role),
+    companySlug: AUTOTEST_COMPANY_SLUG,
+  }));
+}
+
+/** Empty books for browser tests. Feature set C with approval on; one customer and one supplier. */
+export function autotestTenant(): TenantData {
+  return {
+    ...emptyTenant(),
+    approvalEnabled: true,
+    contacts: [atCustomer, atSupplier],
+    documents: [],
+    members: autotestMembers(),
   };
 }

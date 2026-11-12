@@ -1,6 +1,10 @@
 export const DEFAULT_COMPANY_SLUG = "harbour" as const;
 export const DEFAULT_COMPANY_NAME = "Harbour Office" as const;
 
+/** Dedicated company for local e2e / demo-video workflows. Keeps harbour demo data untouched. */
+export const AUTOTEST_COMPANY_SLUG = "autotest" as const;
+export const AUTOTEST_COMPANY_NAME = "Autotest Lab" as const;
+
 export const RESERVED_COMPANY_SLUGS = [
   "register",
   "verify",

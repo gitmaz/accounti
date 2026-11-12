@@ -4,8 +4,12 @@ cdk.out/
 spa/dist/
 spa/node_modules/
 data/store.json
+data/e2e-store.json
 .env
 .env.*
 !.env.example
 *.log
 .DS_Store
+playwright-report/
+test-results/
+blob-report/
